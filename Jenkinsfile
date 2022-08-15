@@ -26,7 +26,7 @@ podTemplate(inheritFrom: 'default', containers: [
             stage("Building Distributed Tasks") {
             jsTask {
                 checkout scm
-                sh 'yarn install'
+                sh 'yarn install --network-timeout 1000000000'
 
                 distributedTasks << distributed('test', 3)
                 distributedTasks << distributed('lint', 3)
@@ -60,7 +60,7 @@ def distributed(String target, int bins) {
       jsTask {
         stage(title) {
           checkout scm
-          sh 'yarn install'
+          sh 'yarn install --network-timeout 1000000000'
           sh "npx nx run-many --target=${target} --projects=${list} --parallel"
         }
       }
