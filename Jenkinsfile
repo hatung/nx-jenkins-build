@@ -1,26 +1,51 @@
-def distributedTasks = [:]
 
-stage("Building Distributed Tasks") {
-  jsTask {
-    checkout scm
-    sh 'yarn install'
+podTemplate(inheritFrom: 'default', containers: [
+    containerTemplate(name: 'docker-dind', image: 'docker:dind', privileged:true, ttyEnabled: true),
+    containerTemplate(name: 'nodejs', image: 'node:lts-alpine', ttyEnabled: true)
+  ],
+  //volumes: [hostPathVolume(hostPath: '/var/run/docker.sock', mountPath: '/var/run/docker.sock')]
+  ) {
 
-    distributedTasks << distributed('test', 3)
-    distributedTasks << distributed('lint', 3)
-    distributedTasks << distributed('build', 3)
-  }
-}
 
-stage("Run Distributed Tasks") {
-  parallel distributedTasks
+    node(POD_LABEL) {
+        stage('Say hello') {
+             container('nodejs') {
+                stage('Build a Node project') {
+                    sh 'echo hello frm node'
+                    sh 'npm --version'
+                    sh 'pwd'
+                    sh 'mkdir test'
+                }
+            }
+
+        }
+        container('docker-dind') {
+
+            def distributedTasks = [:]
+
+            stage("Building Distributed Tasks") {
+            jsTask {
+                checkout scm
+                sh 'yarn install'
+
+                distributedTasks << distributed('test', 3)
+                distributedTasks << distributed('lint', 3)
+                distributedTasks << distributed('build', 3)
+            }
+            }
+
+            stage("Run Distributed Tasks") {
+            parallel distributedTasks
+            }
+        }
+
+    }
 }
 
 def jsTask(Closure cl) {
-  node {
     withEnv(["HOME=${workspace}"]) {
       docker.image('node:latest').inside('--tmpfs /.config', cl)
     }
-  }
 }
 
 def distributed(String target, int bins) {
