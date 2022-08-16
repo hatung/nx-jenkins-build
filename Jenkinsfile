@@ -1,20 +1,20 @@
 
 podTemplate(inheritFrom: 'default', containers: [
     containerTemplate(name: 'docker-dind', image: 'docker:dind', privileged:true, ttyEnabled: true),
-    containerTemplate(name: 'nodejs', image: 'node:lts-alpine', ttyEnabled: true)
+    containerTemplate(name: 'nodejs', image: 'node:latest', ttyEnabled: true)
   ],
   //volumes: [hostPathVolume(hostPath: '/var/run/docker.sock', mountPath: '/var/run/docker.sock')]
   ) {
 
 
     node(POD_LABEL) {
-        stage('Say hello') {
+        stage('Preparation') {
              container('nodejs') {
-                stage('Build a Node project') {
-                    sh 'echo hello frm node'
-                    sh 'npm --version'
-                    sh 'pwd'
-                    sh 'mkdir test'
+                stage('Install dependencies') {
+                    sh 'echo hello from node'
+                    checkout scm
+                    sh 'npm config set fetch-timeout=600000'
+                    sh 'npm install'
                 }
             }
 
@@ -25,8 +25,8 @@ podTemplate(inheritFrom: 'default', containers: [
 
             stage("Building Distributed Tasks") {
             jsTask {
-                checkout scm
-                sh 'yarn install --network-timeout 1000000000'
+                //checkout scm
+                //sh 'npm install --network-timeout 1000000000'
 
                 distributedTasks << distributed('test', 3)
                 distributedTasks << distributed('lint', 3)
@@ -59,8 +59,6 @@ def distributed(String target, int bins) {
     tasks[title] = {
       jsTask {
         stage(title) {
-          checkout scm
-          sh 'yarn install --network-timeout 1000000000'
           sh "npx nx run-many --target=${target} --projects=${list} --parallel"
         }
       }
